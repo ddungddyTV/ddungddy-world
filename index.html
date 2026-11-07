@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>뚱띠월드</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f0f2f5; color: #333; display: flex; justify-content: center; height: 100vh; }
+    #app { width: 100%; max-width: 480px; background: #fff; display: flex; flex-direction: column; height: 100%; border-left: 1px solid #ccc; border-right: 1px solid #ccc; }
+    
+    /* 모달 (프로필 설정) */
+    .modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal-content { background: #fff; padding: 24px; border-radius: 12px; width: 85%; max-width: 360px; text-align: center; }
+    .modal-content h2 { margin-bottom: 16px; }
+    .profile-preview { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin: 0 auto 12px auto; display: block; border: 2px solid #ddd; }
+    .modal-content input[type="text"] { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 6px; }
+    .modal-content input[type="file"] { margin-bottom: 16px; }
+    .btn { padding: 10px 16px; background: #4A90E2; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
+    
+    /* 상단 네비게이션 (탭) */
+    header { background: #4A90E2; color: #fff; padding: 12px; text-align: center; font-size: 1.2rem; font-weight: bold; }
+    nav { display: flex; background: #e9ecef; border-bottom: 1px solid #ccc; overflow-x: auto; }
+    nav button { flex: 1; padding: 10px 4px; border: none; background: none; font-size: 0.85rem; font-weight: bold; color: #555; cursor: pointer; white-space: nowrap; }
+    nav button.active { background: #fff; color: #4A90E2; border-bottom: 3px solid #4A90E2; }
+    
+    /* 메인 콘텐츠 영역 */
+    .tab-content { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+    .tab-content.active { display: flex; }
+    
+    /* 채팅 화면 */
+    .chat-messages { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column-reverse; background: #fafafa; }
+    .message-item { display: flex; align-items: flex-start; margin-bottom: 12px; }
+    .message-item img { width: 36px; height: 36px; border-radius: 50%; margin-right: 8px; object-fit: cover; }
+    .message-body { max-width: 70%; }
+    .message-author { font-size: 0.75rem; color: #666; margin-bottom: 2px; }
+    .message-bubble { background: #e4e6eb; padding: 8px 12px; border-radius: 12px; font-size: 0.9rem; word-break: break-word; }
+    .message-img { max-width: 100%; border-radius: 8px; margin-top: 4px; }
+    
+    /* 입력 영역 */
+    .chat-input-area { display: flex; padding: 8px; border-top: 1px solid #ddd; background: #fff; align-items: center; }
+    .chat-input-area input[type="text"] { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-right: 6px; }
+    .chat-input-area label { padding: 8px; background: #eee; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; margin-right: 6px; font-size: 0.8rem; }
+    .chat-input-area input[type="file"] { display: none; }
+    .chat-input-area button { padding: 8px 12px; background: #4A90E2; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    
+    /* 목록 형태 스타일 */
+    .list-container { padding: 12px; overflow-y: auto; flex: 1; }
+    .list-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
+    .list-item-left { display: flex; align-items: center; }
+    .list-item img { width: 40px; height: 40px; border-radius: 50%; margin-right: 10px; object-fit: cover; }
+    .action-btn { padding: 6px 10px; background: #28a745; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-left: 4px; }
+    
+    /* 모달 내부 귓속말/아이템창 */
+    .sub-modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index: 150; }
+    .sub-modal-content { background:#fff; padding:16px; border-radius:8px; width:80%; max-width:320px; }
+  </style>
+</head>
+<body>
+
+  <!-- 프로필 설정 모달 -->
+  <div id="profileModal" class="modal">
+    <div class="modal-content">
+      <h2>프로필 설정</h2>
+      <!-- 기본 프로필: 귀여운 사과 아이콘 (SVG Data URL) -->
+      <img id="previewImg" class="profile-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='55' r='35' fill='%23ff5964'/><path d='M50 20 Q55 10 65 15' stroke='%2327ae60' stroke-width='5' fill='none'/><circle cx='40' cy='50' r='4' fill='%23000'/><circle cx='60' cy='50' r='4' fill='%23000'/><path d='M45 62 Q50 67 55 62' stroke='%23000' stroke-width='3' fill='none'/></svg>" alt="기본프사">
+      <input type="file" id="avatarInput" accept="image/*" onchange="loadAvatar(event)">
+      <input type="text" id="nicknameInput" maxlength="20" placeholder="닉네임 입력 (최대 20자)">
+      <button class="btn" onclick="saveProfile()">뚱띠월드 입장하기</button>
+    </div>
+  </div>
+
+  <div id="app">
+    <header>뚱띠월드</header>
+    
+    <!-- 세로/가로 스크롤 가능한 상단 탭 -->
+    <nav>
+      <button id="tabNav-main" class="active" onclick="switchTab('main')">메인채팅방 (<span id="navNick">-</span>)</button>
+      <button id="tabNav-rooms" onclick="switchTab('rooms')">새로운 채팅방 개설</button>
+      <button id="tabNav-users" onclick="switchTab('users')">접속자 목록</button>
+      <button id="tabNav-friends" onclick="switchTab('friends')">친구 목록 & 교환</button>
+    </nav>
+
+    <!-- 1. 메인 채팅방 -->
+    <div id="tab-main" class="tab-content active">
+      <div id="mainChatMessages" class="chat-messages"></div>
+      <div class="chat-input-area">
+        <label for="mainImgInput">📷</label>
+        <input type="file" id="mainImgInput" accept="image/*" onchange="sendImage(event, 'main')">
+        <input type="text" id="mainTextInput" placeholder="메시지 입력..." onkeydown="if(event.key==='Enter') sendText('main')">
+        <button onclick="sendText('main')">전송</button>
+      </div>
+    </div>
+
+    <!-- 2. 개설된 채팅방 목록 & 개설 -->
+    <div id="tab-rooms" class="tab-content">
+      <div style="padding: 12px; border-bottom: 1px solid #ddd; display: flex; gap: 8px;">
+        <input type="text" id="newRoomTitle" placeholder="방 제목 입력" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
+        <button class="action-btn" style="background:#4A90E2;" onclick="createRoom()">방 개설</button>
+      </div>
+      <div id="roomList" class="list-container"></div>
+    </div>
+
+    <!-- 3. 개별 커스텀 방 화면 (숨김 처리 상태) -->
+    <div id="tab-custom-room" class="tab-content">
+      <div style="padding: 8px; background: #eee; display: flex; justify-content: space-between; align-items: center;">
+        <b id="currentRoomTitle">채팅방</b>
+        <button class="action-btn" style="background:#6c757d;" onclick="switchTab('rooms')">나가기</button>
+      </div>
+      <div id="customChatMessages" class="chat-messages"></div>
+      <div class="chat-input-area">
+        <label for="customImgInput">📷</label>
+        <input type="file" id="customImgInput" accept="image/*" onchange="sendImage(event, 'custom')">
+        <input type="text" id="customTextInput" placeholder="메시지 입력..." onkeydown="if(event.key==='Enter') sendText('custom')">
+        <button onclick="sendText('custom')">전송</button>
+      </div>
+    </div>
+
+    <!-- 4. 접속중인 사람들 목록 -->
+    <div id="tab-users" class="tab-content">
+      <div id="userList" class="list-container"></div>
+    </div>
+
+    <!-- 5. 친구 목록 & 교환 -->
+    <div id="tab-friends" class="tab-content">
+      <div style="padding: 12px; background: #eef9ff; border-bottom: 1px solid #ddd; text-align: center;">
+        내 좋은마음 아이템: <b id="itemCount">0</b>개 ❤️
+      </div>
+      <div id="friendList" class="list-container"></div>
+    </div>
+  </div>
+
+  <!-- 귓속말 모달 -->
+  <div id="whisperModal" class="sub-modal">
+    <div class="sub-modal-content">
+      <h3 id="whisperTargetName">귓속말</h3>
+      <input type="text" id="whisperInput" placeholder="귓속말 내용 입력" style="width:100%; padding:8px; margin:10px 0; border:1px solid #ccc; border-radius:4px;">
+      <div style="display:flex; justify-end; gap:6px;">
+        <button class="action-btn" style="background:#6c757d;" onclick="closeWhisper()">취소</button>
+        <button class="action-btn" onclick="sendWhisper()">전송</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 기본 프사 (귀여운 사과 SVG Data URL)
+    const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='55' r='35' fill='%23ff5964'/><path d='M50 20 Q55 10 65 15' stroke='%2327ae60' stroke-width='5' fill='none'/><circle cx='40' cy='50' r='4' fill='%23000'/><circle cx='60' cy='50' r='4' fill='%23000'/><path d='M45 62 Q50 67 55 62' stroke='%23000' stroke-width='3' fill='none'/></svg>";
+
+    let myProfile = { nickname: '', avatar: defaultAvatar };
+    let goodMindItems = 0;
+    
+    // 더미 접속자 및 친구 데이터
+    let activeUsers = [
+      { id: 1, nickname: '딸기공주', avatar: defaultAvatar },
+      { id: 2, nickname: '바나나봇', avatar: defaultAvatar },
+      { id: 3, nickname: '초코쿠키', avatar: defaultAvatar }
+    ];
+    let friends = [];
+    let customRooms = [];
+    let currentCustomRoomId = null;
+
+    let chatData = {
+      main: [],
+      custom: {}
+    };
+
+    let currentWhisperTarget = null;
+
+    // 아바타 파일 로드
+    function loadAvatar(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          document.getElementById('previewImg').src = evt.target.result;
+          myProfile.avatar = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // 프로필 저장 및 시작
+    function saveProfile() {
+      const nick = document.getElementById('nicknameInput').value.trim();
+      if (!nick) {
+        alert('닉네임을 입력해주세요!');
+        return;
+      }
+      myProfile.nickname = nick;
+      document.getElementById('navNick').innerText = nick;
+      document.getElementById('profileModal').style.display = 'none';
+
+      // 접속자 목록 업기
+      renderUserList();
+    }
+
+    // 탭 전환
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+
+      if (tabId === 'custom-room') {
+        document.getElementById('tab-custom-room').classList.add('active');
+      } else {
+        document.getElementById('tab-' + tabId).classList.add('active');
+        const navBtn = document.getElementById('tabNav-' + tabId);
+        if (navBtn) navBtn.classList.add('active');
+      }
+    }
+
+    // 메시지 렌더링 (최신순: column-reverse 이용)
+    function appendMessage(targetKey, author, avatar, text, imgUrl = null) {
+      const msgObj = { author, avatar, text, imgUrl };
+      
+      if (targetKey === 'main') {
+        chatData.main.unshift(msgObj);
+        renderMessages('mainChatMessages', chatData.main);
+      } else {
+        if (!chatData.custom[targetKey]) chatData.custom[targetKey] = [];
+        chatData.custom[targetKey].unshift(msgObj);
+        renderMessages('customChatMessages', chatData.custom[targetKey]);
+      }
+    }
+
+    function renderMessages(containerId, list) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      list.forEach(msg => {
+        const item = document.createElement('div');
+        item.className = 'message-item';
+        
+        let contentHtml = `<div class="message-bubble">${msg.text}</div>`;
+        if (msg.imgUrl) {
+          contentHtml += `<img class="message-img" src="${msg.imgUrl}">`;
+        }
+
+        item.innerHTML = `
+          <img src="${msg.avatar}">
+          <div class="message-body">
+            <div class="message-author">${msg.author}</div>
+            ${contentHtml}
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // 텍스트 전송
+    function sendText(type) {
+      const inputId = type === 'main' ? 'mainTextInput' : 'customTextInput';
+      const input = document.getElementById(inputId);
+      const text = input.value.trim();
+      if (!text) return;
+
+      const targetKey = type === 'main' ? 'main' : currentCustomRoomId;
+      appendMessage(targetKey, myProfile.nickname, myProfile.avatar, text);
+      input.value = '';
+    }
+
+    // 이미지 전송
+    function sendImage(e, type) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const targetKey = type === 'main' ? 'main' : currentCustomRoomId;
+        appendMessage(targetKey, myProfile.nickname, myProfile.avatar, '사진을 보냈습니다.', evt.target.result);
+        e.target.value = '';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // 방 개설 및 목록
+    function createRoom() {
+      const titleInput = document.getElementById('newRoomTitle');
+      const title = titleInput.value.trim();
+      if (!title) return;
+
+      const roomId = Date.now();
+      customRooms.push({ id: roomId, title });
+      titleInput.value = '';
+      renderRoomList();
+    }
+
+    function renderRoomList() {
+      const container = document.getElementById('roomList');
+      container.innerHTML = '';
+      customRooms.forEach(room => {
+        const item = document.createElement('div');
+        item.className = 'list-item';
+        item.innerHTML = `
+          <span><b>${room.title}</b></span>
+          <button class="action-btn" onclick="enterRoom(${room.id}, '${room.title}')">입장</button>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function enterRoom(id, title) {
+      currentCustomRoomId = id;
+      document.getElementById('currentRoomTitle').innerText = title;
+      if (!chatData.custom[id]) chatData.custom[id] = [];
+      renderMessages('customChatMessages', chatData.custom[id]);
+      switchTab('custom-room');
+    }
+
+    // 접속자 목록 & 친구 추가
+    function renderUserList() {
+      const container = document.getElementById('userList');
+      container.innerHTML = '';
+      activeUsers.forEach(user => {
+        const isFriend = friends.some(f => f.id === user.id);
+        const item = document.createElement('div');
+        item.className = 'list-item';
+        item.innerHTML = `
+          <div class="list-item-left">
+            <img src="${user.avatar}">
+            <span>${user.nickname}</span>
+          </div>
+          ${isFriend 
+            ? '<span style="font-size:0.8rem; color:#888;">친구됨</span>' 
+            : `<button class="action-btn" onclick="addFriend(${user.id})">친구추가</button>`}
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function addFriend(userId) {
+      const user = activeUsers.find(u => u.id === userId);
+      if (user && !friends.some(f => f.id === userId)) {
+        friends.push(user);
+        goodMindItems += 1; // 친구 1명 추가 시 아이템 획득
+        document.getElementById('itemCount').innerText = goodMindItems;
+        alert(`${user.nickname}님을 친구로 추가했습니다! ('좋은마음' 아이템 +1)`);
+        renderUserList();
+        renderFriendList();
+      }
+    }
+
+    // 친구 목록 & 귓속말 / 아이템 교환
+    function renderFriendList() {
+      const container = document.getElementById('friendList');
+      container.innerHTML = '';
+      if (friends.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">추가된 친구가 없습니다.</div>';
+        return;
+      }
+      friends.forEach(friend => {
+        const item = document.createElement('div');
+        item.className = 'list-item';
+        item.innerHTML = `
+          <div class="list-item-left">
+            <img src="${friend.avatar}">
+            <span>${friend.nickname}</span>
+          </div>
+          <div>
+            <button class="action-btn" style="background:#ff9800;" onclick="openWhisper('${friend.nickname}')">귓속말</button>
+            <button class="action-btn" style="background:#9c27b0;" onclick="exchangeItem('${friend.nickname}')">아이템 교환</button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // 귓속말 기능
+    function openWhisper(nickname) {
+      currentWhisperTarget = nickname;
+      document.getElementById('whisperTargetName').innerText = `${nickname}님에게 귓속말`;
+      document.getElementById('whisperModal').style.display = 'flex';
+    }
+
+    function closeWhisper() {
+      document.getElementById('whisperModal').style.display = 'none';
+      document.getElementById('whisperInput').value = '';
+    }
+
+    function sendWhisper() {
+      const text = document.getElementById('whisperInput').value.trim();
+      if (text) {
+        alert(`[귓속말 -> ${currentWhisperTarget}]: ${text}`);
+        closeWhisper();
+      }
+    }
+
+    // 아이템 교환 기능
+    function exchangeItem(nickname) {
+      if (goodMindItems <= 0) {
+        alert('교환할 "좋은마음" 아이템이 부족합니다!');
+        return;
+      }
+      goodMindItems -= 1;
+      document.getElementById('itemCount').innerText = goodMindItems;
+      alert(`${nickname}님과 "좋은마음" 아이템 1개를 교환했습니다! ❤️`);
+    }
+  </script>
+</body>
+</html>
